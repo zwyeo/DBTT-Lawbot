@@ -19,4 +19,4 @@
 
 # To start the Chatbot:
 
-- streamlit run chatbotUI.py
+- streamlit run chatbot.py
