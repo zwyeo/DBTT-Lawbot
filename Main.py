@@ -62,7 +62,7 @@ def generate_prompt():
     {question}
 
     Instructions:
-    Use the context provided to answer the legal question, taking into consideration of the chat history if any. If you are not certain about the answer, please indicate that you do not have the necessary information and recommend that the user seek legal advice from one of firm XYZ's lawyers. DO NOT make up any information that you do not possess.
+    Use the context provided to answer the legal question, taking into consideration of the chat history if any. If you are not certain about the answer, please indicate that you do not have the necessary information and recommend that the user seek legal advice from one of EdenLaw's lawyers. DO NOT make up any information that you do not possess.
 
 """
     return prompt_template
