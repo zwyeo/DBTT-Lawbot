@@ -8,7 +8,7 @@ import requests
 
 user = ''
 
-st.title ('Chat Bot: LAW Consultation')
+st.title ("EdenLaw's Chatbot Consultation")
 
 def get_username():
     input = st.empty()
