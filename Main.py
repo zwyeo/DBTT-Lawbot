@@ -1,6 +1,7 @@
 import os
 import datetime
 import xml.etree.ElementTree as ET
+import openai
 from dotenv import load_dotenv
 from langchain.llms import OpenAI
 from langchain.docstore.document import Document
@@ -14,7 +15,8 @@ from langchain import OpenAI, LLMChain, PromptTemplate
 import pathlib
 import subprocess
 import tempfile
-from xml.dom import minidom
+import csv
+import datetime
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -24,7 +26,9 @@ from tenacity import (
 
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("API_KEY")
+openai.api_key = os.getenv("API_KEY")
 query_list = []
+categories = ["adoption", "childcare", "childsupport", "custody", "willmaking"]
 
 def get_source():
     for file_name in os.listdir("db//"):
@@ -40,7 +44,7 @@ def compare_chunks(sources):
     for source in sources:
         for chunk in splitter.split_text(source.page_content):
             source_chunks.append(Document(page_content=chunk, metadata=source.metadata))
-    return Chroma.from_documents(source_chunks, OpenAIEmbeddings())
+    return Chroma.from_documents(source_chunks, OpenAIEmbeddings(), persist_directory="vector_db\\")
 
 
 def generate_prompt():
@@ -64,8 +68,8 @@ def generate_prompt():
     return prompt_template
 
 #@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(3))
-def search_db(query):
-    search_index = compare_chunks(get_source())
+def search_db(query, username):
+    search_index = Chroma(persist_directory='vector_db', embedding_function= OpenAIEmbeddings())
     global query_list
     query_list.append(query)
     if len(query_list) > 3:
@@ -87,52 +91,39 @@ def search_db(query):
     query = query
     chain({"input_documents": docs, "question": query}, return_only_outputs=True)
     result = chain.memory.buffer
-
+    query_cat = categorize_issue(query, categories)
+    store_userdata(username, query, query_cat)
     return result
 
 
-
-# def main(username):
-#     print(f"Hi {username}, welcome to XYZ Law Firm's Advice Bot! Please ask me anything and I will try my best to answer you! \n However, please note that the reply I provide is not legal advice. If you require legal advice, please book an appointment with one of our helpful lawyers here! (dummyLink). \n Type 'exit' to exit the program. \n")
-#     user_input = input(f"{username}: ")
-#     while user_input != "exit":
-#         result = search_db(user_input).split("AI:")
-#         print(result[1])
-#         write_to_xml(username, user_input)
-#         user_input = input(f"{username}: ")
-#     print("Thank you for using our service! Have a nice day!")
-    
-
-# def write_to_xml(username, user_input):
-#     filepath = "userdata.xml"
-
-#     if not os.path.exists(filepath):
-#         root = ET.Element("userdata")
-#         tree = ET.ElementTree(root)
-#         tree.write(filepath, encoding="utf-8", xml_declaration=True)
-
-#     try:
-#         tree = ET.parse(filepath)
-#         root = tree.getroot()
-#     except ET.ParseError:
-#         os.remove(filepath)
-#         root = ET.Element("userdata")
-#         tree = ET.ElementTree(root)
-#         tree.write(filepath, encoding="utf-8", xml_declaration=True)
-
-#     user_element = root.find(f".//{username}")
-#     if user_element is None:
-#         user_element = ET.SubElement(root, username)
-
-#     new_entry = ET.Element("entry")
-#     new_entry.text = user_input
-#     user_element.append(new_entry)
-
-#     # Use minidom to generate a well-structured XML file
-#     xml_string = minidom.parseString(ET.tostring(root)).toprettyxml(indent="    ", newl="\n", encoding="utf-8")
-#     with open(filepath, "wb") as f:
-#         f.write(xml_string)
+def categorize_issue(issue, categories):
+    prompt = f"Categorize the issue '{issue}' into one of the following categories, and return me with one category. Categories: {', '.join(categories)}."
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        max_tokens=100,
+        n=1,
+        temperature=0.9,
+        top_p=1,
+        presence_penalty=0.6
+    )
+    issue_category = response.choices[0].text.strip().lower()
+    if issue_category in categories:
+        return issue_category
+    return None
 
 
-
-# main('bob')
+def store_userdata(username, query, query_cat):
+    timestamp = datetime.datetime.now()
+    fieldnames = ['Timestamp', 'Username', 'User_Query', 'Query_Category']
+    filepath = "userdata.csv"
+    if not os.path.exists(filepath):
+        with open(filepath, "w") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+    try:
+        with open(filepath, 'a', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writerow({'Timestamp':timestamp, 'Username':username, 'User_Query':query, 'Query_Category':query_cat})
+    except:
+        EOFError("Error writing to file")
