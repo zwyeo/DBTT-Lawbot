@@ -28,10 +28,12 @@ def get_text():
     return input_text
 
 username_input = st.empty()
-user = username_input.text_input('Please enter your name.')
-if user != '':
-    username_input.empty()
-    st.info(user)
+# user = username_input.text_input('Please enter your name.')
+# if user != '':
+#     username_input.empty()
+#     st.info(user)
+
+user = 'bobby'
 
 if user:
     user_input = get_text()
