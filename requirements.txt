@@ -27,3 +27,7 @@ langchain==0.0.109
 chromadb==0.3.10
 streamlit==1.20.0
 streamlit-chat==0.0.2.2
+pydeck==0.8.0
+scikit_learn==1.2.1
+plotly==5.13.1
+seaborn==0.12.2
